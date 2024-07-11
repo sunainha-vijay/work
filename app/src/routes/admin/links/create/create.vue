@@ -35,7 +35,7 @@
 						</n-button>
 					</n-form-item>
 				</n-row>
-				<n-form-item path="android_url" label="Android URL" style="flex-grow: 1">
+				<!--<n-form-item path="android_url" label="Android URL" style="flex-grow: 1">
 					<n-input
 						v-model:value="model.android_url_raw"
 						class="url-input"
@@ -58,7 +58,7 @@
 						@change="handleIosUrlUpdate"
 						@update:value="handleIosUrlUpdate"
 					></n-input>
-				</n-form-item>
+				</n-form-item>-->
 
 				<div style="display: flex; justify-content: center">
 					<n-button round type="primary" :disabled="showLoadingSpinner" @click="handleCreateLink">
