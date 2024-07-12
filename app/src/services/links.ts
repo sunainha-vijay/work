@@ -1,8 +1,8 @@
-
+// app/src/services/links.ts
 
 import { supabase } from '@/services/supabase';
 import { Link } from '@/types/global';
-import axios, { Axios } from 'axios';
+import axios from 'axios';
 import { useAppStore } from '@/stores/appStore';
 
 const supaflareWorkerUpdateURL = import.meta.env.VITE_SUPAFLARE_WORKER_URL + '/supaflare_cfw_update';
