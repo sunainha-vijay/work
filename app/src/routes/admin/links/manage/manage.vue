@@ -1,3 +1,5 @@
+
+
 <template>
 	<admin-view>
 		<h1>Manage Links</h1>
@@ -310,7 +312,7 @@ export default defineComponent({
 		        title: 'ShortURL',
 		        key: 'slug',
 		        render(row: any) {
-		            const fullUrl = `https://supaflare-worker.sunu.workers.dev/${row.slug}`;
+		            const fullUrl = `https://supaflare-worker.studyyymusic.workers.dev/${row.slug}`;
 		            return h(
 		                'a',
 		                {
