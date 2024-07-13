@@ -1,5 +1,3 @@
-
-
 <template>
 	<admin-view>
 		<h1>Manage Links</h1>
@@ -87,15 +85,21 @@
 								@update:value="handleIosUrlUpdate"
 							></n-input>
 						</n-form-item>
+						<n-form-item path="end_date" label="End Date">
+							<n-date-picker
+								v-model:value="model.end_date"
+								type="datetime"
+								clearable
+								:is-date-disabled="isDateDisabled"
+							/>
+						</n-form-item>
 					</n-form>
 				</n-spin>
 			</div>
 			<template #footer>
 				<div>
-					<n-button type="primary" :disabled="showLoadingSpinner" @click="handleSaveEdits">Update</n-button
-					><n-button style="margin-left: 20px" :disabled="showLoadingSpinner" @click="showEditModal = false"
-						>Cancel</n-button
-					>
+					<n-button type="primary" :disabled="showLoadingSpinner" @click="handleSaveEdits">Update</n-button>
+					<n-button style="margin-left: 20px" :disabled="showLoadingSpinner" @click="showEditModal = false">Cancel</n-button>
 				</div>
 			</template>
 		</n-modal>
@@ -119,6 +123,7 @@ import {
 	NInputGroupLabel,
 	NIcon,
 	NRow,
+	NDatePicker,
 } from 'naive-ui';
 import { Sync } from '@vicons/fa';
 import { useLinksStore } from '@/stores/linksStore';
@@ -138,10 +143,10 @@ export default defineComponent({
 		NInputGroupLabel,
 		NIcon,
 		NRow,
+		NDatePicker,
 		Sync,
 	},
 	setup() {
-		const slugRef = ref();
 		const messageDuration = 5000;
 		const linksStore = useLinksStore();
 		const message = useMessage();
@@ -149,11 +154,12 @@ export default defineComponent({
 		const formRef = ref();
 		const tableRef = ref();
 		const loadingRef = ref(true);
-		const links = ref<Link[] | []>([]);
+		const links = ref<Link[]>([]);
 		const showEditModal = ref(false);
 		const showLoadingSpinner = ref(false);
 
-		const modelRef: any = ref({
+		const modelRef = ref({
+			id: '',
 			url: computed(() => {
 				if (!modelRef.value.url_raw[0] && !modelRef.value.url_raw[1]) return '';
 				return modelRef.value.url_raw[0] + '://' + modelRef.value.url_raw[1];
@@ -170,8 +176,8 @@ export default defineComponent({
 				return modelRef.value.ios_url_raw[0] + '://' + modelRef.value.ios_url_raw[1];
 			}),
 			ios_url_raw: ['', ''],
+			end_date: null as number | null,
 		});
-		const editRowRef = ref();
 
 		const rules = {
 			url: [
@@ -239,46 +245,151 @@ export default defineComponent({
 			],
 		};
 
-		// Remove confusion with caps I caps O and l
 		const nanoid = customAlphabet('1234567890abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', 6);
 
-		async function handleGenerateSlug() {
-			modelRef.value.slug = nanoid();
-			try {
-				await slugRef.value.validate();
-			} catch (error) {
-				return;
+		function calculateTimeLeft(endDate: string | undefined): string {
+			if (!endDate) {
+				return 'No expiration';
 			}
+
+			const now = new Date();
+			const expirationDate = new Date(endDate);
+			const timeDiff = expirationDate.getTime() - now.getTime();
+			
+			if (timeDiff <= 0) {
+				return 'Expired';
+			}
+
+			const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+			const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+			return `${days}d ${hours}h`;
+		}
+
+		const columns: any = [
+			{
+				title: 'URL',
+				key: 'url',
+				render(row: Link) {
+					return h(
+						'a',
+						{
+							href: row.url,
+							target: '_blank',
+						},
+						{ default: () => row.url }
+					);
+				},
+			},
+			{
+				title: 'ShortURL',
+				key: 'slug',
+				render(row: Link) {
+					const fullUrl = `https://supaflare-worker.studyyymusic.workers.dev/${row.slug}`;
+					return h(
+						'a',
+						{
+							href: fullUrl,
+							target: '_blank',
+						},
+						{ default: () => fullUrl }
+					);
+				},
+			},
+			{
+				title: 'TTL',
+				key: 'ttl',
+				render(row: Link) {
+					return h('span', {}, { default: () => calculateTimeLeft(row.end_date) });
+				},
+			},
+			{
+				title: 'Action',
+				key: 'actions',
+				width: '150px',
+				render(row: Link) {
+					return h('div', [
+						h(
+							NButton,
+							{
+								size: 'small',
+								onClick: () => handleEditLink(row),
+							},
+							{ default: () => 'Edit' }
+						),
+						h(
+							NButton,
+							{
+								size: 'small',
+								type: 'error',
+								style: 'margin-left: 10px',
+								onClick: () => handleDeleteLink(row),
+							},
+							{ default: () => 'Delete' }
+						),
+					]);
+				},
+			},
+		];
+
+		const rowKey = (row: Link) => row.id || '';
+
+		const paginationReactive = reactive({
+			page: 1,
+			pageSize: 10,
+			showSizePicker: true,
+			pageSizes: [10, 20, 30],
+			onChange: (page: number) => {
+				paginationReactive.page = page;
+			},
+			onPageSizeChange: (pageSize: number) => {
+				paginationReactive.pageSize = pageSize;
+				paginationReactive.page = 1;
+			},
+		});
+
+		onMounted(() => {
+			getLatestLinks();
+		});
+
+		async function getLatestLinks() {
+			try {
+				loadingRef.value = true;
+				const { data, error } = await fetchLinks();
+				if (error) throw error;
+				linksStore.updateLinks(data || []);
+				links.value = linksStore.links;
+			} catch (error) {
+				message.error('Error fetching links...', { duration: messageDuration });
+			} finally {
+				loadingRef.value = false;
+			}
+		}
+
+		function handleGenerateSlug() {
+			modelRef.value.slug = nanoid();
 		}
 
 		async function handleSaveEdits() {
 			try {
-				await formRef.value.validate();
+				await formRef.value?.validate();
 			} catch (error) {
 				return;
 			}
 			try {
 				showLoadingSpinner.value = true;
-				const { error } = await editLink(editRowRef.value, {
+				const { error } = await editLink(modelRef.value.id, {
 					url: modelRef.value.url,
 					slug: modelRef.value.slug,
 					meta: {
 						android_url: modelRef.value.android_url,
 						ios_url: modelRef.value.ios_url,
 					},
+					end_date: modelRef.value.end_date ? new Date(modelRef.value.end_date).toISOString() : null,
 				});
 				if (error) throw error;
 
-				for (let link of links.value) {
-					if (link.id === editRowRef.value.id) {
-						link.url = modelRef.value.url;
-						link.slug = modelRef.value.slug;
-						link.meta = {
-							android_url: modelRef.value.android_url,
-							ios_url: modelRef.value.ios_url,
-						};
-					}
-				}
+				await getLatestLinks();
 
 				message.success('Link successfully updated!', { duration: messageDuration });
 				showEditModal.value = false;
@@ -293,143 +404,8 @@ export default defineComponent({
 			}
 		}
 
-		const columns: any = [
-		    {
-		        title: 'URL',
-		        key: 'url',
-		        render(row: any) {
-		            return h(
-		                'a',
-		                {
-		                    href: row.url,
-		                    target: '_blank',
-		                },
-		                { default: () => row.url }
-		            );
-		        },
-		    },
-		    {
-		        title: 'ShortURL',
-		        key: 'slug',
-		        render(row: any) {
-		            const fullUrl = `https://supaflare-worker.studyyymusic.workers.dev/${row.slug}`;
-		            return h(
-		                'a',
-		                {
-		                    href: fullUrl,
-		                    target: '_blank',
-		                },
-		                { default: () => fullUrl }
-		            );
-		        },
-		    },
-		  /*  {
-		        title: 'Android URL',
-		        key: 'meta.android_url',
-		        render(row: any) {
-		            return h(
-		                'a',
-		                {
-		                    href: row.meta.android_url,
-		                    target: '_blank',
-		                },
-		                { default: () => row.meta.android_url }
-		            );
-		        },
-		    },
-		    {
-		        title: 'iOS URL',
-		        key: 'meta.ios_url',
-		        render(row: any) {
-		            return h(
-		                'a',
-		                {
-		                    href: row.meta.ios_url,
-		                    target: '_blank',
-		                },
-		                { default: () => row.meta.ios_url }
-		            );
-		        },
-		    },*/
-		    {
-		        title: 'Action',
-		        key: 'actions',
-		        width: '150px',
-		        render(row: any) {
-		            return h('div', [
-		                h(
-		                    NButton,
-		                    {
-		                        size: 'small',
-		                        onClick: () => handleEditLink(row),
-		                    },
-		                    { default: () => 'Edit' }
-		                ),
-		                h(
-		                    NButton,
-		                    {
-		                        size: 'small',
-		                        type: 'error',
-		                        style: 'margin-left: 10px',
-		                        onClick: () => handleDeleteLink(row),
-		                    },
-		                    { default: () => 'Delete' }
-		                ),
-		            ]);
-		        },
-		    },
-		];
-
-
-		const rowKey = () => {
-			return 'id';
-		};
-
-		const paginationReactive = reactive({
-			page: 1,
-			pageSize: 10,
-			showSizePicker: true,
-			pageSizes: [10, 20, 30],
-			onChange: (page: any) => {
-				paginationReactive.page = page;
-			},
-			onPageSizeChange: (pageSize: any) => {
-				paginationReactive.pageSize = pageSize;
-				paginationReactive.page = 1;
-			},
-		});
-
-		getLatestLinks();
-
-		async function getLatestLinks() {
-			try {
-				const { data, error } = await fetchLinks();
-				if (error) throw error;
-				linksStore.updateLinks(data || []);
-			} catch (error) {
-				message.error('Error fetching links...', { duration: messageDuration });
-			}
-		}
-
-		function query() {
-			return new Promise((resolve) => {
-				(async () => {
-					await getLatestLinks();
-					resolve({});
-				})();
-			});
-		}
-
-		onMounted(() => {
-			query().then(() => {
-				links.value = linksStore.links;
-				loadingRef.value = false;
-			});
-		});
-
-		function handleEditLink(row: any) {
-			editRowRef.value = row;
-			modelRef.value.id = row.id;
+		function handleEditLink(row: Link) {
+			modelRef.value.id = row.id || '';
 			modelRef.value.slug = row.slug;
 
 			if (row.url) {
@@ -438,52 +414,38 @@ export default defineComponent({
 			} else {
 				modelRef.value.url_raw = ['', ''];
 			}
-			if (row.meta.android_url) {
+			if (row.meta?.android_url) {
 				const fields = String(row.meta.android_url).split('://');
 				modelRef.value.android_url_raw = [fields[0], fields.slice(1).join('://')];
 			} else {
 				modelRef.value.android_url_raw = ['', ''];
 			}
-			if (row.meta.ios_url) {
+			if (row.meta?.ios_url) {
 				const fields = String(row.meta.ios_url).split('://');
 				modelRef.value.ios_url_raw = [fields[0], fields.slice(1).join('://')];
 			} else {
 				modelRef.value.ios_url_raw = ['', ''];
 			}
+			modelRef.value.end_date = row.end_date ? new Date(row.end_date).getTime() : null;
 
 			showEditModal.value = true;
 		}
 
-		function handleDeleteLink(row: any) {
-			dialog.warning({
-				title: 'Confirm Delete Link',
-				content: 'Are you sure you want to delete this link with slug of "' + row.slug + '"?',
-				positiveText: 'Confirm',
-				negativeText: 'Cancel',
-				onPositiveClick: async () => {
-					performDeleteLink(row);
-				},
-				onNegativeClick: () => {
-					return;
-				},
-			});
-		}
-
-		async function performDeleteLink(row: any) {
+ 	        async function performDeleteLink(row: Link) {
 			try {
 				loadingRef.value = true;
-				await deleteLink(row);
+				await deleteLink(row.id);
 				linksStore.deleteLink(row);
 				links.value = links.value.filter((link) => link.id !== row.id);
+				message.success('Link successfully deleted!');
 			} catch (error) {
 				message.error('Error deleting link...', { duration: messageDuration });
 			} finally {
 				loadingRef.value = false;
-				message.success('Link successfully deleted!');
 			}
 		}
 
-		function handleUrlUpdate(val: any) {
+		function handleUrlUpdate(val: [string, string]) {
 			if (String(val[0]).includes('://')) {
 				const splits = String(val[0]).split('://');
 				if (splits.length > 1) {
@@ -501,7 +463,7 @@ export default defineComponent({
 			}
 		}
 
-		function handleAndroidUrlUpdate(val: any) {
+		function handleAndroidUrlUpdate(val: [string, string]) {
 			if (String(val[0]).includes('://')) {
 				const splits = String(val[0]).split('://');
 				if (splits.length > 1) {
@@ -519,7 +481,7 @@ export default defineComponent({
 			}
 		}
 
-		function handleIosUrlUpdate(val: any) {
+		function handleIosUrlUpdate(val: [string, string]) {
 			if (String(val[0]).includes('://')) {
 				const splits = String(val[0]).split('://');
 				if (splits.length > 1) {
@@ -537,8 +499,11 @@ export default defineComponent({
 			}
 		}
 
+		function isDateDisabled(timestamp: number) {
+			return timestamp < Date.now();
+		}
+
 		return {
-			slugRef,
 			formRef,
 			tableRef,
 			loadingRef,
@@ -556,6 +521,7 @@ export default defineComponent({
 			handleUrlUpdate,
 			handleAndroidUrlUpdate,
 			handleIosUrlUpdate,
+			isDateDisabled,
 		};
 	},
 });
