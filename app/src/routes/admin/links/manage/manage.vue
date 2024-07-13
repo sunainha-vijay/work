@@ -141,11 +141,11 @@ export default defineComponent({
     const formRef = ref();
     const tableRef = ref();
     const loadingRef = ref(true);
-    const links = ref<Link[] | []>([]);
+    const links = ref<Link[]>([]);
     const showEditModal = ref(false);
     const showLoadingSpinner = ref(false);
 
-    const modelRef = ref({
+    const modelRef = ref<any>({
       id: '',
       url: computed(() => {
         if (!modelRef.value.url_raw[0] && !modelRef.value.url_raw[1]) return '';
@@ -255,7 +255,7 @@ export default defineComponent({
         showLoadingSpinner.value = true;
         if (!editRowRef.value) return;
 
-        const { error } = await editLink(editRowRef.value.id, {
+        const { error } = await editLink(editRowRef.value.id!, {
           url: modelRef.value.url,
           slug: modelRef.value.slug,
           meta: {
@@ -266,7 +266,7 @@ export default defineComponent({
         if (error) throw error;
 
         for (let link of links.value) {
-          if (link.id === editRowRef.value.id) {
+          if (link.id === editRowRef.value!.id) {
             link.url = modelRef.value.url;
             link.slug = modelRef.value.slug;
             link.meta = {
@@ -293,7 +293,7 @@ export default defineComponent({
       {
         title: 'URL',
         key: 'url',
-        render(row: any) {
+        render(row: Link) {
           return h(
             'a',
             {
@@ -307,7 +307,7 @@ export default defineComponent({
       {
         title: 'ShortURL',
         key: 'slug',
-        render(row: any) {
+        render(row: Link) {
           const fullUrl = `https://supaflare-worker.sunu.workers.dev/${row.slug}`;
           return h(
             'a',
@@ -323,7 +323,7 @@ export default defineComponent({
         title: 'Action',
         key: 'actions',
         width: '150px',
-        render(row: any) {
+        render(row: Link) {
           return h('div', [
             h(
               NButton,
@@ -396,7 +396,7 @@ export default defineComponent({
 
     function handleEditLink(row: Link) {
       editRowRef.value = row;
-      modelRef.value.id = row.id;
+      modelRef.value.id = row.id || '';
       modelRef.value.slug = row.slug;
 
       if (row.url) {
@@ -405,13 +405,13 @@ export default defineComponent({
       } else {
         modelRef.value.url_raw = ['', ''];
       }
-      if (row.meta.android_url) {
+      if (row.meta?.android_url) {
         const fields = String(row.meta.android_url).split('://');
         modelRef.value.android_url_raw = [fields[0], fields.slice(1).join('://')];
       } else {
         modelRef.value.android_url_raw = ['', ''];
       }
-      if (row.meta.ios_url) {
+      if (row.meta?.ios_url) {
         const fields = String(row.meta.ios_url).split('://');
         modelRef.value.ios_url_raw = [fields[0], fields.slice(1).join('://')];
       } else {
@@ -436,7 +436,7 @@ export default defineComponent({
     async function performDeleteLink(row: Link) {
       try {
         loadingRef.value = true;
-        await deleteLink(row.id);
+        await deleteLink(row.id!);
         linksStore.deleteLink(row);
         links.value = links.value.filter((link) => link.id !== row.id);
         message.success('Link successfully deleted!', { duration: messageDuration });
