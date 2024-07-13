@@ -285,7 +285,7 @@ export default defineComponent({
 				title: 'ShortURL',
 				key: 'slug',
 				render(row: Link) {
-					const fullUrl = `https://supaflare-worker.studyyymusic.workers.dev/${row.slug}`;
+					const fullUrl = `https://supaflare-worker.sunu.workers.dev/${row.slug}`;
 					return h(
 						'a',
 						{
