@@ -120,7 +120,7 @@ import { Sync } from '@vicons/fa';
 import { useLinksStore } from '@/stores/linksStore';
 import { Link } from '@/types/global';
 import { customAlphabet } from 'nanoid';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNowStrict, intervalToDuration } from 'date-fns';
 
 export default defineComponent({
   components: {
@@ -326,7 +326,8 @@ export default defineComponent({
         render(row: any) {
           const now = new Date();
           const endDate = new Date(row.meta.end_date);
-          return formatDistanceToNow(endDate, { addSuffix: true });
+          const duration = intervalToDuration({ start: now, end: endDate });
+          return `${duration.days} days ${duration.hours} hours ${duration.minutes} minutes left`;
         },
       },
       {
