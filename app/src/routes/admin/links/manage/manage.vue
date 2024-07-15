@@ -320,14 +320,27 @@ export default defineComponent({
           );
         },
       },
+      // In the columns definition for the TTL column
       {
         title: 'TTL',
         key: 'ttl',
         render(row: any) {
           const now = new Date();
-          const endDate = new Date(row.meta.end_date);
+          const endDate = new Date(row.meta.end_date); // Ensure end_date is correctly accessed
           const duration = intervalToDuration({ start: now, end: endDate });
-          return `${duration.days} days ${duration.hours} hours ${duration.minutes} minutes left`;
+          const formattedDuration = `${duration.days} days ${duration.hours} hours ${duration.minutes} minutes left`;
+      
+          // Check if endDate is valid
+          if (isNaN(endDate.getTime())) {
+            return 'Invalid end date';
+          }
+      
+          // Check if duration is valid
+          if (duration.days < 0 || duration.hours < 0 || duration.minutes < 0) {
+            return 'Expired';
+          }
+      
+          return formattedDuration;
         },
       },
       {
