@@ -1,5 +1,3 @@
-
-
 <template>
   <admin-view>
     <h1>Create Link</h1>
