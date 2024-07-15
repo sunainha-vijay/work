@@ -320,7 +320,6 @@ export default defineComponent({
           );
         },
       },
-      // In the columns definition for the TTL column
       {
         title: 'TTL',
         key: 'ttl',
@@ -329,17 +328,17 @@ export default defineComponent({
           const endDate = new Date(row.meta.end_date); // Ensure end_date is correctly accessed
           const duration = intervalToDuration({ start: now, end: endDate });
           const formattedDuration = `${duration.days} days ${duration.hours} hours ${duration.minutes} minutes left`;
-      
+
           // Check if endDate is valid
           if (isNaN(endDate.getTime())) {
             return 'Invalid end date';
           }
-      
+
           // Check if duration is valid
           if (duration.days < 0 || duration.hours < 0 || duration.minutes < 0) {
             return 'Expired';
           }
-      
+
           return formattedDuration;
         },
       },
