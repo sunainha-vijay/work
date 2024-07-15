@@ -120,7 +120,7 @@ import { Sync } from '@vicons/fa';
 import { useLinksStore } from '@/stores/linksStore';
 import { Link } from '@/types/global';
 import { customAlphabet } from 'nanoid';
-import { formatDistanceToNowStrict, intervalToDuration } from 'date-fns';
+import { intervalToDuration } from 'date-fns';
 
 export default defineComponent({
   components: {
@@ -328,26 +328,25 @@ export default defineComponent({
           if (!row.meta || !row.meta.end_date) {
             return 'No TTL data';
           }
-      
+
           const now = new Date();
           const endDate = new Date(row.meta.end_date);
-      
+
           // Check if endDate is a valid date
           if (isNaN(endDate.getTime())) {
             return 'Invalid end date';
           }
-      
+
           const duration = intervalToDuration({ start: now, end: endDate });
-      
+
           // Check if duration is valid
           if (duration.days < 0 || duration.hours < 0 || duration.minutes < 0) {
             return 'Expired';
           }
-      
+
           return `${duration.days} days ${duration.hours} hours ${duration.minutes} minutes left`;
         },
       },
-
       {
         title: 'Action',
         key: 'actions',
@@ -434,13 +433,13 @@ export default defineComponent({
       } else {
         modelRef.value.url_raw = ['', ''];
       }
-      if (row.meta.android_url) {
+      if (row.meta?.android_url) {
         const fields = String(row.meta.android_url).split('://');
         modelRef.value.android_url_raw = [fields[0], fields.slice(1).join('://')];
       } else {
         modelRef.value.android_url_raw = ['', ''];
       }
-      if (row.meta.ios_url) {
+      if (row.meta?.ios_url) {
         const fields = String(row.meta.ios_url).split('://');
         modelRef.value.ios_url_raw = [fields[0], fields.slice(1).join('://')];
       } else {
